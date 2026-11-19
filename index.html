@@ -47,7 +47,13 @@ function gasBridgeMessage(ev) {
   const d = ev.data;
   if (!d || d.type !== 'silzari-attendance-response' || !d.requestId) return;
   const pending = pendingGasCalls.get(d.requestId);
-  if (!pending || ev.source !== pending.frame.contentWindow) return;
+  if (!pending) return;
+
+const validOrigin =
+  ev.origin.startsWith('https://') &&
+  new URL(ev.origin).hostname.endsWith('.googleusercontent.com');
+
+if (!validOrigin) return;
   clearTimeout(pending.timer);
   pendingGasCalls.delete(d.requestId);
   pending.frame.remove();
