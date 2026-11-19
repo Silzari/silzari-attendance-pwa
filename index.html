@@ -111,9 +111,30 @@ $('#app').innerHTML=`
 </div>`;
 
 }
-async function login(){U={id:$('#li').value.trim().toUpperCase(),pin:$('#lp').value.trim()};if(!U.id||!U.pin)return toast('Enter your Employee ID and PIN');
-  try{S=await call('login');try{localStorage.setItem('sz',JSON.stringify(U))}catch(_){}tab='home';startGeo();try{CR=await call('corrs')}catch(_){}draw()}catch(x){U=null;toast(x)}}
-function logout(){if(WID!==null&&navigator.geolocation){navigator.geolocation.clearWatch(WID);WID=null}GEO={};CR=null;LV=null;TM=null;try{localStorage.removeItem('sz')}catch(_){}U=null;S=null;loginView()}
+async function login(){
+  U={id:$('#li').value.trim().toUpperCase(),pin:$('#lp').value.trim()};
+  if(!U.id||!U.pin)return toast('Enter your Employee ID and PIN');
+
+  try{
+    S=await call('login');
+    try{localStorage.setItem('sz',JSON.stringify(U))}catch(_){}
+
+    tab='home';
+    startGeo();
+    draw();
+
+    call('corrs')
+      .then(data=>{
+        CR=data;
+        if(tab==='home') draw();
+      })
+      .catch(()=>{});
+
+  }catch(x){
+    U=null;
+    toast(x);
+  }
+}function logout(){if(WID!==null&&navigator.geolocation){navigator.geolocation.clearWatch(WID);WID=null}GEO={};CR=null;LV=null;TM=null;try{localStorage.removeItem('sz')}catch(_){}U=null;S=null;loginView()}
 const distM=(a,b,c,d)=>{const t=x=>x*Math.PI/180,dl=t(c-a),dg=t(d-b),h=Math.sin(dl/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dg/2)**2;return 2*6371000*Math.asin(Math.sqrt(h))};
 function getFix(){return new Promise((ok,no)=>{if(!navigator.geolocation)return no('Unable to verify your location. Please try again.');navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy}),x=>no(x.code==1?'Please enable location access to mark your attendance.':'Unable to verify your location. Please try again.'),{enableHighAccuracy:true,maximumAge:0,timeout:20000})})}
 function startGeo(){if(WID!==null)return;if(!navigator.geolocation){GEO.err='unavail';return}WID=navigator.geolocation.watchPosition(p=>{GEO.err=null;GEO.pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};geoUI()},x=>{GEO.pos=null;GEO.err=x.code==1?'denied':'unavail';geoUI()},{enableHighAccuracy:true,maximumAge:0,timeout:30000})}
