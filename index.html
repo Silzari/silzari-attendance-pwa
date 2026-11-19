@@ -132,11 +132,38 @@ function teamExtra(){const T=TM,ap=(CR&&CR.ap)||[];return`${ap.length?`<div clas
 <div class="card"><h2>Blocked attempts</h2>${T.exc.map(x=>`<div class="row" style="display:block"><b>${e(x.name)}</b> · ${e(x.act)} · <span class="wn">${e(x.why)}</span><div class="mu">${e(x.time)}${x.dist!==''?' · '+x.dist+' m away':''}${x.acc!==''?' · accuracy '+x.acc+' m':''}${x.loc?' · <a href="https://www.google.com/maps?q='+e(x.loc)+'" target="_blank">map</a>':''}</div></div>`).join('')||'<span class="mu">No blocked attempts.</span>'}</div>
 ${S.me.role=='admin'?`<div class="card"><h2>Workplaces</h2>${T.wps.map(w=>`<div class="row"><span>${e(w.name)}<div class="mu">${e(w.addr)}</div></span><span class="mu">${w.radius} m</span></div>`).join('')||'<span class="mu">None yet. Add them in the Locations tab of your Google Sheet.</span>'}<button class="go" onclick="myCoords()">Show my current coordinates</button><div id="mc" class="mu" style="margin-top:6px">Stand at the workplace and tap the button, then copy the numbers into the Locations tab.</div></div>`:''}`}
 async function month(ym){try{S=await call('month',{ym});draw()}catch(x){toast(x)}}
-async function loadLeave(){try{LV=await call('leaves');draw()}catch(x){toast(x)}}
+async function loadLeave(){
+  tab='leave';
+  draw();
+
+  try{
+    LV=await call('leaves');
+    if(tab==='leave') draw();
+  }catch(x){
+    toast(x);
+  }
+}
 async function applyL(){try{LV=await call('apply',{type:$('#lt').value,from:$('#lf').value,to:$('#lto').value,half:$('#lh').value,reason:$('#lr').value});toast('Leave request sent');draw()}catch(x){toast(x)}}
 async function cancelL(id){try{LV=await call('cancel',{id});draw()}catch(x){toast(x)}}
 async function decideL(id,st){try{LV=await call('decide',{id,st,cmt:($('#c_'+id)||{}).value||''});toast('Saved');draw()}catch(x){toast(x)}}
-async function loadTeam(ym){try{TM=await call('team',{ym});CR=await call('corrs');draw()}catch(x){toast(x)}}
+async function loadTeam(ym){
+  tab='team';
+  draw();
+
+  try{
+    const results=await Promise.all([
+      call('team',{ym}),
+      call('corrs')
+    ]);
+
+    TM=results[0];
+    CR=results[1];
+
+    if(tab==='team') draw();
+  }catch(x){
+    toast(x);
+  }
+}
 function draw(){const m=S.me,boss=m.role=='admin'||m.role=='manager';$('#who').innerHTML=`<button class="link" onclick="logout()">Log out</button>`;
   const B=(k,t,f)=>`<button class="${tab==k?'on':''}" onclick="${f}">${t}</button>`;
   const h=`<div class="tabs">${B('home','Attendance',"tab='home';draw()")}${B('leave','Leave'+(LV&&LV.ap.length?' ('+LV.ap.length+')':''),"tab='leave';loadLeave()")}${boss?B('team','Team',"tab='team';loadTeam()"):''}</div>`;
