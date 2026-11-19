@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#6a2c5a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Silzari Attendance">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<title>Silzari Attendance</title>
+<style>
+:root{--bg:#f2f1f4;--card:#fff;--ink:#1e1b24;--mu:#6d6a76;--ac:#6a2c5a;--ac2:#efe3ec;--ok:#1f7a6d;--wn:#b4690e;--bad:#b3362e;--bd:#e0dde5}
+@media (prefers-color-scheme:dark){:root{--bg:#16141a;--card:#201d26;--ink:#efecf3;--mu:#a09cab;--ac:#d9a0cb;--ac2:#35283a;--ok:#5fd0bf;--wn:#f0b45a;--bad:#ff8a80;--bd:#37333f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:14px 16px;background:var(--card);border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center}
+.brand{font-weight:700;font-size:18px;color:var(--ac);letter-spacing:.06em}.brand small{display:block;color:var(--mu);font-weight:400;font-size:12px;letter-spacing:0}
+main{max-width:560px;margin:0 auto;padding:14px}.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:12px}
+h2{margin:0 0 2px;font-size:20px}.mu{color:var(--mu);font-size:13px}.ok{color:var(--ok)}.wn{color:var(--wn)}.bad{color:var(--bad)}
+label{display:block;font-size:13px;color:var(--mu);margin:10px 0 4px}input,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:11px}
+button{font:inherit;border:0;border-radius:12px;cursor:pointer}.go{width:100%;margin-top:14px;background:var(--ac);color:var(--bg);padding:13px;font-weight:600}
+.link{background:none;color:var(--ac);padding:6px 8px}
+.clock{font-size:46px;font-weight:700;font-variant-numeric:tabular-nums;text-align:center;margin:8px 0 2px}
+.pb{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.pb button{padding:20px 0;font-size:17px;font-weight:700;background:var(--ac);color:var(--bg)}.pb button:disabled{opacity:.3;cursor:default}
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.sum div{background:var(--bg);border-radius:10px;text-align:center;padding:8px 2px}.sum b{display:block;font-size:20px}.sum span{font-size:11px;color:var(--mu)}
+.row{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd)}.row:last-child{border:0}
+.tabs{display:flex;gap:6px;margin-bottom:12px}.tabs button{flex:1;padding:10px;background:var(--card);color:var(--mu);border:1px solid var(--bd)}.tabs button.on{background:var(--ac2);color:var(--ac);font-weight:600;border-color:var(--ac)}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:420px}th,td{text-align:left;padding:7px 5px;border-bottom:1px solid var(--bd);white-space:nowrap}th{color:var(--mu);font-size:12px}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;display:none;max-width:90%;z-index:9}
+</style></head><body>
+<header><div class="brand">SILZARI<small>JJ Retail Pvt. Ltd. · Attendance</small></div>
+<div style="display:flex;align-items:center;gap:8px"><button id="installApp" class="link" style="display:none" type="button">Install app</button><div id="who"></div></div></header>
+<div id="installHelp" style="display:none;max-width:560px;margin:10px auto;padding:10px 14px;font-size:13px;color:var(--mu)"></div>
+<div id="gasBridgeHost" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"></div>
+<main id="app"></main><div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s),e=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let U=null,S=null,TM=null,LV=null,CR=null,GEO={},WID=null,tab='home',busy=false;
+const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3500)};
+const GAS_WEB_APP_URL = 'PASTE_TEST_WEB_APP_EXEC_URL_HERE';
+const pendingGasCalls = new Map();
+function gasBridgeMessage(ev) {
+  const d = ev.data;
+  if (!d || d.type !== 'silzari-attendance-response' || !d.requestId) return;
+  const pending = pendingGasCalls.get(d.requestId);
+  if (!pending || ev.source !== pending.frame.contentWindow) return;
+  clearTimeout(pending.timer);
+  pendingGasCalls.delete(d.requestId);
+  pending.frame.remove();
+  if (d.ok) pending.resolve(d.data);
+  else pending.reject(d.error || 'The attendance server returned an error.');
+}
+window.addEventListener('message', gasBridgeMessage);
+const call=(a,p)=>new Promise((ok,no)=>{
+  if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.indexOf('https://script.google.com/macros/s/') !== 0) {
+    no('The testing Apps Script URL has not been configured.'); return;
+  }
+  const requestId = 'sz' + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+  const frame = document.createElement('iframe');
+  const target = 'gas_' + requestId;
+  frame.name = target;
+  frame.title = 'Attendance service connection';
+  frame.style.cssText = 'position:absolute;width:0;height:0;border:0';
+  const timer = setTimeout(()=>{
+    pendingGasCalls.delete(requestId);
+    frame.remove();
+    no('The attendance server did not respond. Please check your connection and try again.');
+  }, 30000);
+  pendingGasCalls.set(requestId,{resolve:ok,reject:no,frame,timer});
+  document.getElementById('gasBridgeHost').appendChild(frame);
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = GAS_WEB_APP_URL;
+  form.target = target;
+  form.style.display = 'none';
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'payload';
+  input.value = JSON.stringify({requestId,act:a,id:U.id,pin:U.pin,p:p||{}});
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+  setTimeout(()=>form.remove(),1000);
+});
+const fm=m=>{m=Math.round(m);if(m<60)return m+' min';const h=Math.floor(m/60),r=m%60;return h+(h>1?' hours':' hour')+(r?' '+r+' min':'')};
+const now=()=>new Date().toTimeString().slice(0,5);
+function loginView(){$('#who').innerHTML='';$('#app').innerHTML=`<div class="card"><h2>Employee login</h2><div class="mu">Use the Employee ID and PIN given by HR.</div><label>Employee ID</label><input id="li" autocapitalize="characters" autocomplete="username"><label>PIN</label><input id="lp" type="password" inputmode="numeric" autocomplete="current-password"><button class="go" onclick="login()">Log in</button></div>`}
+async function login(){U={id:$('#li').value.trim().toUpperCase(),pin:$('#lp').value.trim()};if(!U.id||!U.pin)return toast('Enter your Employee ID and PIN');
+  try{S=await call('login');try{localStorage.setItem('sz',JSON.stringify(U))}catch(_){}tab='home';startGeo();try{CR=await call('corrs')}catch(_){}draw()}catch(x){U=null;toast(x)}}
+function logout(){if(WID!==null&&navigator.geolocation){navigator.geolocation.clearWatch(WID);WID=null}GEO={};CR=null;LV=null;TM=null;try{localStorage.removeItem('sz')}catch(_){}U=null;S=null;loginView()}
+const distM=(a,b,c,d)=>{const t=x=>x*Math.PI/180,dl=t(c-a),dg=t(d-b),h=Math.sin(dl/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dg/2)**2;return 2*6371000*Math.asin(Math.sqrt(h))};
+function getFix(){return new Promise((ok,no)=>{if(!navigator.geolocation)return no('Unable to verify your location. Please try again.');navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy}),x=>no(x.code==1?'Please enable location access to mark your attendance.':'Unable to verify your location. Please try again.'),{enableHighAccuracy:true,maximumAge:0,timeout:20000})})}
+function startGeo(){if(WID!==null)return;if(!navigator.geolocation){GEO.err='unavail';return}WID=navigator.geolocation.watchPosition(p=>{GEO.err=null;GEO.pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};geoUI()},x=>{GEO.pos=null;GEO.err=x.code==1?'denied':'unavail';geoUI()},{enableHighAccuracy:true,maximumAge:0,timeout:30000})}
+function geoState(){const w=S&&S.wp;if(S&&!S.geo)return{ok:true,msg:'Location check is switched off by HR.'};if(!w)return{ok:false,msg:'No workplace is set up for you. Please contact HR.'};if(GEO.err=='denied')return{ok:false,msg:'Please enable location access to mark your attendance.'};if(!GEO.pos)return{ok:false,msg:GEO.err?'Unable to verify your location. Please try again.':'Checking your location...'};
+  const d=distM(GEO.pos.lat,GEO.pos.lng,w.lat,w.lng),a=GEO.pos.acc;if(a>S.maxAcc)return{ok:false,d,msg:'Your GPS signal is weak (about '+Math.round(a)+' m). Move to an open area.'};
+  return d<=w.radius?{ok:true,d,msg:'Location verified. You can mark your attendance.'}:{ok:false,d,msg:'You are outside the permitted workplace area. Please reach your assigned workplace to mark attendance.'}}
+function geoUI(){const el=$('#geo');if(!el||!S)return;const g=geoState(),w=S.wp,r=S.rec;
+  el.innerHTML=`<div class="${g.ok?'ok':'wn'}"><b>${e(g.msg)}</b></div>${w?`<div class="mu">Workplace: ${e(w.name)} · Allowed radius ${w.radius} m${g.d!=null?' · You are '+Math.round(g.d)+' m away':''}</div>`:''}`;
+  const bi=$('#bin'),bo=$('#bout');if(bi)bi.disabled=!(g.ok&&!r.in);if(bo)bo.disabled=!(g.ok&&r.in&&!r.out)}
+async function punch(k){if(busy)return;busy=true;try{const loc=S.geo?await getFix():null;S=await call('punch',{kind:k,loc});toast(k=='in'?'Checked in at '+S.rec.in:'Checked out at '+S.rec.out);draw()}catch(x){toast(x)}busy=false}
+async function myCoords(){try{const p=await getFix();$('#mc').textContent=p.lat.toFixed(6)+', '+p.lng.toFixed(6)+' (accuracy '+Math.round(p.acc)+' m)'}catch(x){toast(x)}}
+async function reqCorr(){try{CR=await call('corr',{date:$('#cd').value,act:$('#ca').value,time:$('#ct').value,reason:$('#cr').value});toast('Request sent');draw()}catch(x){toast(x)}}
+async function decC(id,st){try{CR=await call('cdecide',{id,st,cmt:($('#cc_'+id)||{}).value||''});toast('Saved');draw()}catch(x){toast(x)}}
+function corrCard(){const m=(CR&&CR.mine)||[];return`<div class="card"><h2>Regularize Attendance</h2><div class="mu">Missed a check-in or check-out, or could not mark it? Send a request to your manager.</div><label>Date</label><input id="cd" type="date" value="${S.today}"><label>Action</label><select id="ca"><option value="in">Check-in</option><option value="out">Check-out</option></select><label>Time</label><input id="ct" type="time"><label>Reason</label><input id="cr"><button class="go" onclick="reqCorr()">Send request</button>${m.slice(0,5).map(c=>`<div class="row" style="display:block"><b>${c.date}</b> · ${c.act=='in'?'Check-in':'Check-out'} ${c.time} · <span class="${c.st=='Approved'?'ok':c.st=='Rejected'?'bad':'wn'}">${c.st}</span>${c.by?'<div class="mu">'+e(c.by)+(c.cmt?': '+e(c.cmt):'')+'</div>':''}</div>`).join('')}</div>`}
+function teamExtra(){const T=TM,ap=(CR&&CR.ap)||[];return`${ap.length?`<div class="card"><h2>Regularization requests</h2>${ap.map(c=>`<div class="row" style="display:block"><b>${e(c.name)}</b> · ${c.date} · ${c.act=='in'?'Check-in':'Check-out'} ${c.time}<div class="mu">${e(c.reason)}</div><input id="cc_${c.id}" placeholder="Comment (required to reject)"><div style="display:flex;gap:8px;margin-top:8px"><button class="go" style="margin:0" onclick="decC('${c.id}','Approved')">Approve</button><button class="go" style="margin:0;background:var(--bad)" onclick="decC('${c.id}','Rejected')">Reject</button></div></div>`).join('')}</div>`:''}
+<div class="card"><h2>Blocked attempts</h2>${T.exc.map(x=>`<div class="row" style="display:block"><b>${e(x.name)}</b> · ${e(x.act)} · <span class="wn">${e(x.why)}</span><div class="mu">${e(x.time)}${x.dist!==''?' · '+x.dist+' m away':''}${x.acc!==''?' · accuracy '+x.acc+' m':''}${x.loc?' · <a href="https://www.google.com/maps?q='+e(x.loc)+'" target="_blank">map</a>':''}</div></div>`).join('')||'<span class="mu">No blocked attempts.</span>'}</div>
+${S.me.role=='admin'?`<div class="card"><h2>Workplaces</h2>${T.wps.map(w=>`<div class="row"><span>${e(w.name)}<div class="mu">${e(w.addr)}</div></span><span class="mu">${w.radius} m</span></div>`).join('')||'<span class="mu">None yet. Add them in the Locations tab of your Google Sheet.</span>'}<button class="go" onclick="myCoords()">Show my current coordinates</button><div id="mc" class="mu" style="margin-top:6px">Stand at the workplace and tap the button, then copy the numbers into the Locations tab.</div></div>`:''}`}
+async function month(ym){try{S=await call('month',{ym});draw()}catch(x){toast(x)}}
+async function loadLeave(){try{LV=await call('leaves');draw()}catch(x){toast(x)}}
+async function applyL(){try{LV=await call('apply',{type:$('#lt').value,from:$('#lf').value,to:$('#lto').value,half:$('#lh').value,reason:$('#lr').value});toast('Leave request sent');draw()}catch(x){toast(x)}}
+async function cancelL(id){try{LV=await call('cancel',{id});draw()}catch(x){toast(x)}}
+async function decideL(id,st){try{LV=await call('decide',{id,st,cmt:($('#c_'+id)||{}).value||''});toast('Saved');draw()}catch(x){toast(x)}}
+async function loadTeam(ym){try{TM=await call('team',{ym});CR=await call('corrs');draw()}catch(x){toast(x)}}
+function draw(){const m=S.me,boss=m.role=='admin'||m.role=='manager';$('#who').innerHTML=`<button class="link" onclick="logout()">Log out</button>`;
+  const B=(k,t,f)=>`<button class="${tab==k?'on':''}" onclick="${f}">${t}</button>`;
+  const h=`<div class="tabs">${B('home','Attendance',"tab='home';draw()")}${B('leave','Leave'+(LV&&LV.ap.length?' ('+LV.ap.length+')':''),"tab='leave';loadLeave()")}${boss?B('team','Team',"tab='team';loadTeam()"):''}</div>`;
+  $('#app').innerHTML=h+(tab=='team'&&TM?teamView()+teamExtra():tab=='leave'&&LV?leaveView():homeView());if(tab=='home')geoUI()}
+function leaveView(){const b=LV.bal,sc={Pending:'wn',Approved:'ok',Rejected:'bad',Cancelled:'mu'};
+  return`<div class="card"><h2>Leave balance · ${e(LV.cat)}</h2><div class="sum"><div><b>${b.CL.left}</b><span>Casual of ${b.CL.q}</span></div><div><b>${b.SL.left}</b><span>Sick of ${b.SL.q}</span></div><div><b>${b.PL.left}</b><span>Privilege of ${b.PL.q}</span></div><div><b>${LV.mine.filter(l=>l.st=='Pending').length}</b><span>Pending</span></div></div></div>
+  <div class="card"><h2>Apply for leave</h2><label>Type</label><select id="lt"><option value="CL">Casual (${b.CL.left} left)</option><option value="SL">Sick (${b.SL.left} left)</option><option value="PL">Privilege (${b.PL.left} left)</option><option value="LOP">Unpaid (LOP)</option></select><label>From</label><input id="lf" type="date" value="${S.today}"><label>To</label><input id="lto" type="date" value="${S.today}"><label>Duration</label><select id="lh"><option value="">Full day(s)</option><option value="AM">Half day - first half</option><option value="PM">Half day - second half</option></select><label>Reason</label><input id="lr"><button class="go" onclick="applyL()">Submit request</button></div>
+  ${LV.ap.length?`<div class="card"><h2>Waiting for your approval</h2>${LV.ap.map(l=>`<div class="row" style="display:block"><b>${e(l.name)}</b> · ${l.type} · ${l.from} to ${l.to} (${l.days} d)<div class="mu">${e(l.reason)}</div><input id="c_${l.id}" placeholder="Comment (required to reject)"><div style="display:flex;gap:8px;margin-top:8px"><button class="go" style="margin:0" onclick="decideL('${l.id}','Approved')">Approve</button><button class="go" style="margin:0;background:var(--bad)" onclick="decideL('${l.id}','Rejected')">Reject</button></div></div>`).join('')}</div>`:''}
+  <div class="card"><h2>My requests <button class="link" onclick="loadLeave()">Refresh</button></h2>${LV.mine.map(l=>`<div class="row" style="display:block"><b>${l.from} to ${l.to}</b> · ${l.type} · ${l.days} d <span class="${sc[l.st]||''}">· ${l.st}</span><div class="mu">${e(l.reason)}${(l.by||l.cmt||l.on)?' · '+[l.by&&e(l.by),l.cmt&&e(l.cmt)].filter(Boolean).join(': '):''}${l.on?' ('+e(l.on)+')':''}</div>${l.st=='Pending'?`<button class="link" onclick="cancelL('${l.id}')">Cancel request</button>`:''}</div>`).join('')||'<span class="mu">No requests yet.</span>'}</div>`}
+function homeView(){const m=S.me,r=S.rec,lt=r.late>0,out=r.out;
+  return`<div class="card"><h2>Hello, ${e(m.name.split(' ')[0])}</h2><div class="mu">${e(m.dept)} · Shift ${m.start}-${m.end} · ${S.today}${S.note?' · '+e(S.note):''}</div><div class="clock" id="clk">${now()}</div>
+  <div id="geo" style="margin-top:8px"></div>
+  <div class="pb"><button id="bin" disabled onclick="punch('in')">Check in</button><button id="bout" disabled onclick="punch('out')">Check out</button></div>
+  <div>${r.in?`In <b>${r.in}</b> ${lt?`<span class="wn">· late by ${fm(r.late)}</span>`:'<span class="ok">· on time</span>'}`:'<span class="mu">Not checked in yet.</span>'}${out?`<br>Out <b>${out}</b>${r.early>0?` <span class="wn">· ${fm(r.early)} early</span>`:''} · ${r.hrs} h worked`:''}</div></div>
+  <div class="card"><label style="margin-top:0">Month</label><input type="month" value="${S.ym}" onchange="month(this.value)"><div class="sum"><div><b>${S.sum.p}</b><span>Present</span></div><div><b>${S.sum.a}</b><span>Absent</span></div><div><b>${S.sum.l}</b><span>Leave</span></div><div><b>${S.sum.late}</b><span>Late</span></div></div><div class="mu">${S.sum.hrs} hours worked · ${S.sum.early} early departures</div>
+  <div style="margin-top:8px">${S.days.map(d=>`<div class="row"><span>${d.d.slice(8)} ${new Date(d.d+'T00:00:00').toLocaleDateString('en-IN',{weekday:'short'})}</span><span class="${d.st=='Absent'?'bad':d.st=='Present'||d.st=='Remote'?'':'mu'}">${d.st}${d.in?' · '+d.in+' - '+(d.out||'?'):''}${d.late>0?' <span class="wn">late</span>':''}</span></div>`).join('')||'<span class="mu">No days yet.</span>'}</div></div>${corrCard()}`}
+function teamView(){const T=TM,c=s=>s=='Absent'||s=='-'?'bad':s=='Present'||s=='Remote'?'ok':'mu';
+  return`<div class="card"><h2>Today</h2><div class="mu">${T.today}</div>${T.board.map(x=>`<div class="row"><span>${e(x.name)} <span class="mu">${e(x.dept)}</span></span><span class="${c(x.st)}">${x.st=='-'?'Not in':x.st}${x.in?' · '+x.in+(x.out?' - '+x.out:''):''}${x.late>0?' <span class="wn">late</span>':''}${x.loc?' <a href="https://www.google.com/maps?q='+e(x.loc)+'" target="_blank">map</a>':''}${x.dist!==''?' <span class="mu">'+x.dist+' m</span>':''}${x.flag?' <span class="bad">'+e(x.flag)+'</span>':''}</span></div>`).join('')}</div>
+  <div class="card"><label style="margin-top:0">Month</label><input type="month" value="${T.ym}" onchange="loadTeam(this.value)"><div class="tw"><table><tr><th>Name</th><th>Present</th><th>Absent</th><th>Leave</th><th>Late</th><th>Hours</th></tr>${T.month.map(x=>`<tr><td>${e(x.name)}</td><td>${x.p}</td><td>${x.a}</td><td>${x.l}</td><td>${x.late}</td><td>${x.hrs}</td></tr>`).join('')}</table></div></div>`}
+setInterval(()=>{const c=$('#clk');if(c)c.textContent=now()},20000);
+(async()=>{let saved=null;try{saved=JSON.parse(localStorage.getItem('sz'))}catch(_){}
+  if(saved){U=saved;try{S=await call('login');startGeo();try{CR=await call('corrs')}catch(_){}return draw()}catch(x){U=null}}loginView()})();
+
+// Installable PWA support. The service worker caches only the app shell;
+// attendance actions always go to the live Apps Script backend.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js', {scope: './'}).catch(err => console.warn('PWA service worker:', err));
+  });
+}
+let deferredInstallPrompt = null;
+const installButton = document.getElementById('installApp');
+const installHelp = document.getElementById('installHelp');
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  if (installButton) installButton.style.display = 'inline-block';
+});
+if (installButton) installButton.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installButton.style.display = 'none';
+});
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+if (isIOS && !isStandalone && installHelp) {
+  installHelp.style.display = 'block';
+  installHelp.textContent = 'To install Silzari Attendance: open this page in Safari, tap Share, then choose “Add to Home Screen”.';
+}
+
+</script></body></html>
