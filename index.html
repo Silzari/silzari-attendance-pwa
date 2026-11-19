@@ -36,7 +36,7 @@ button{font:inherit;border:0;border-radius:12px;cursor:pointer}.go{width:100%;ma
 const $=s=>document.querySelector(s),e=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let U=null,S=null,TM=null,LV=null,CR=null,GEO={},WID=null,tab='home',busy=false;
 const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3500)};
-const GAS_WEB_APP_URL = 'PASTE_TEST_WEB_APP_EXEC_URL_HERE';
+const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz6CTM645H7u3JI6gumL2ROZagGrDmka8ATRCX2oDNNXGj01LZXkAxUCWeM_LCbB1oq/exec';
 const pendingGasCalls = new Map();
 function gasBridgeMessage(ev) {
   const d = ev.data;
