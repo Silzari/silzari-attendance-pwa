@@ -39,6 +39,11 @@ const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';clea
 const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz6CTM645H7u3JI6gumL2ROZagGrDmka8ATRCX2oDNNXGj01LZXkAxUCWeM_LCbB1oq/exec';
 const pendingGasCalls = new Map();
 function gasBridgeMessage(ev) {
+  console.log('GAS MESSAGE DIAGNOSTIC:', {
+  origin: ev.origin,
+  data: ev.data,
+  source: ev.source
+});
   const d = ev.data;
   if (!d || d.type !== 'silzari-attendance-response' || !d.requestId) return;
   const pending = pendingGasCalls.get(d.requestId);
