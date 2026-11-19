@@ -155,6 +155,7 @@ ${S.me.role=='admin'?`<div class="card"><h2>Workplaces</h2>${T.wps.map(w=>`<div 
 async function month(ym){try{S=await call('month',{ym});draw()}catch(x){toast(x)}}
 async function loadLeave(){
   tab='leave';
+  LV=null;
   draw();
 
   try{
@@ -169,6 +170,7 @@ async function cancelL(id){try{LV=await call('cancel',{id});draw()}catch(x){toas
 async function decideL(id,st){try{LV=await call('decide',{id,st,cmt:($('#c_'+id)||{}).value||''});toast('Saved');draw()}catch(x){toast(x)}}
 async function loadTeam(ym){
   tab='team';
+  TM=null;
   draw();
 
   try{
