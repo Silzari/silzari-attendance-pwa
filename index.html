@@ -188,7 +188,19 @@ async function loadTeam(ym){
 function draw(){const m=S.me,boss=m.role=='admin'||m.role=='manager';$('#who').innerHTML=`<button class="link" onclick="logout()">Log out</button>`;
   const B=(k,t,f)=>`<button class="${tab==k?'on':''}" onclick="${f}">${t}</button>`;
   const h=`<div class="tabs">${B('home','Attendance',"tab='home';draw()")}${B('leave','Leave'+(LV&&LV.ap.length?' ('+LV.ap.length+')':''),"tab='leave';loadLeave()")}${boss?B('team','Team',"tab='team';loadTeam()"):''}</div>`;
-  $('#app').innerHTML=h+(tab=='team'&&TM?teamView()+teamExtra():tab=='leave'&&LV?leaveView():homeView());if(tab=='home')geoUI()}
+  let content='';
+
+if(tab==='team'){
+  content=TM ? teamView()+teamExtra() : '<div class="card">Loading team...</div>';
+}
+else if(tab==='leave'){
+  content=LV ? leaveView() : '<div class="card">Loading leave requests...</div>';
+}
+else{
+  content=homeView();
+}
+
+$('#app').innerHTML=h+content;if(tab=='home')geoUI()}
 function leaveView(){const b=LV.bal,sc={Pending:'wn',Approved:'ok',Rejected:'bad',Cancelled:'mu'};
   return`<div class="card"><h2>Leave balance · ${e(LV.cat)}</h2><div class="sum"><div><b>${b.CL.left}</b><span>Casual of ${b.CL.q}</span></div><div><b>${b.SL.left}</b><span>Sick of ${b.SL.q}</span></div><div><b>${b.PL.left}</b><span>Privilege of ${b.PL.q}</span></div><div><b>${LV.mine.filter(l=>l.st=='Pending').length}</b><span>Pending</span></div></div></div>
   <div class="card"><h2>Apply for leave</h2><label>Type</label><select id="lt"><option value="CL">Casual (${b.CL.left} left)</option><option value="SL">Sick (${b.SL.left} left)</option><option value="PL">Privilege (${b.PL.left} left)</option><option value="LOP">Unpaid (LOP)</option></select><label>From</label><input id="lf" type="date" value="${S.today}"><label>To</label><input id="lto" type="date" value="${S.today}"><label>Duration</label><select id="lh"><option value="">Full day(s)</option><option value="AM">Half day - first half</option><option value="PM">Half day - second half</option></select><label>Reason</label><input id="lr"><button class="go" onclick="applyL()">Submit request</button></div>
