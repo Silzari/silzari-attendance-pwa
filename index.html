@@ -112,16 +112,40 @@ $('#app').innerHTML=`
 
 }
 async function login(){
-  U={id:$('#li').value.trim().toUpperCase(),pin:$('#lp').value.trim()};
-  if(!U.id||!U.pin)return toast('Enter your Employee ID and PIN');
+  U={
+    id:$('#li').value.trim().toUpperCase(),
+    pin:$('#lp').value.trim()
+  };
+
+  if(!U.id||!U.pin)
+    return toast('Enter your Employee ID and PIN');
 
   try{
     S=await call('login');
-    try{localStorage.setItem('sz',JSON.stringify(U))}catch(_){}
+
+    try{
+      localStorage.setItem('sz',JSON.stringify(U));
+    }catch(_){}
 
     tab='home';
     startGeo();
     draw();
+
+    // TEMPORARY PERFORMANCE TEST
+    const p = S && S._performance;
+
+    if(p){
+      alert(
+        'LOGIN PERFORMANCE REPORT\n\n' +
+        'Settings & Holidays: ' + p.settingsAndHolidays + ' ms\n' +
+        'Attendance Records: ' + p.attendanceRecords + ' ms\n' +
+        'Monthly Calculation: ' + p.monthlyCalculation + ' ms\n' +
+        'Workplace Lookup: ' + p.workplaceLookup + ' ms\n\n' +
+        'Total Backend Time: ' + p.totalStateTime + ' ms'
+      );
+    }else{
+      alert('Performance data not received. Please check deployment.');
+    }
 
     call('corrs')
       .then(data=>{
