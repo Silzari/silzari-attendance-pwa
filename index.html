@@ -276,6 +276,7 @@ async function punch(k){
     draw();
 
     const b = S && S._serverTiming;
+    const p = S && S._performance;
 
 alert(
   'ATTENDANCE PERFORMANCE\n\n'+
@@ -286,6 +287,12 @@ alert(
   'Authentication: '+(b ? b.authentication : 'N/A')+' ms\n'+
   'Punch Processing: '+(b ? b.punchProcessing : 'N/A')+' ms\n'+
   'Backend Total: '+(b ? b.totalBackend : 'N/A')+' ms'
+  '\n\nPUNCH BREAKDOWN\n'+
+'Settings & Holidays: '+(p ? p.settingsAndHolidays : 'N/A')+' ms\n'+
+'Attendance Records: '+(p ? p.attendanceRecords : 'N/A')+' ms\n'+
+'Monthly Calculation: '+(p ? p.monthlyCalculation : 'N/A')+' ms\n'+
+'Workplace Lookup: '+(p ? p.workplaceLookup : 'N/A')+' ms\n'+
+'State Processing Total: '+(p ? p.totalStateTime : 'N/A')+' ms'
 );
   }catch(x){
     toast(x);
