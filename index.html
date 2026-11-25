@@ -275,13 +275,18 @@ async function punch(k){
 
     draw();
 
-    alert(
-      'ATTENDANCE PERFORMANCE\n\n'+
-      'GPS Time: '+Math.round(gpsTime)+' ms\n'+
-      'Server/API Time: '+Math.round(serverTime)+' ms\n'+
-      'Total Time: '+Math.round(performance.now()-totalStart)+' ms'
-    );
+    const b = S && S._serverTiming;
 
+alert(
+  'ATTENDANCE PERFORMANCE\n\n'+
+  'GPS Time: '+Math.round(gpsTime)+' ms\n'+
+  'Server/API Time: '+Math.round(serverTime)+' ms\n'+
+  'Total Time: '+Math.round(performance.now()-totalStart)+' ms\n\n'+
+  'AUTHENTICATION & BACKEND\n'+
+  'Authentication: '+(b ? b.authentication : 'N/A')+' ms\n'+
+  'Punch Processing: '+(b ? b.punchProcessing : 'N/A')+' ms\n'+
+  'Backend Total: '+(b ? b.totalBackend : 'N/A')+' ms'
+);
   }catch(x){
     toast(x);
 
