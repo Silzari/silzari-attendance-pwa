@@ -251,10 +251,22 @@ async function punch(k){
 
   busy=true;
 
+  const totalStart=performance.now();
+  let gpsTime=0;
+  let serverTime=0;
+
   try{
+    const gpsStart=performance.now();
+
     const loc=S.geo?await getRecentFix():null;
 
+    gpsTime=performance.now()-gpsStart;
+
+    const serverStart=performance.now();
+
     S=await call('punch',{kind:k,loc});
+
+    serverTime=performance.now()-serverStart;
 
     toast(k=='in'
       ? 'Checked in at '+S.rec.in
@@ -262,6 +274,13 @@ async function punch(k){
     );
 
     draw();
+
+    alert(
+      'ATTENDANCE PERFORMANCE\n\n'+
+      'GPS Time: '+Math.round(gpsTime)+' ms\n'+
+      'Server/API Time: '+Math.round(serverTime)+' ms\n'+
+      'Total Time: '+Math.round(performance.now()-totalStart)+' ms'
+    );
 
   }catch(x){
     toast(x);
