@@ -189,15 +189,87 @@ async function login(){
 }function logout(){if(WID!==null&&navigator.geolocation){navigator.geolocation.clearWatch(WID);WID=null}GEO={};CR=null;LV=null;TM=null;try{localStorage.removeItem('sz')}catch(_){}U=null;S=null;loginView()}
 const distM=(a,b,c,d)=>{const t=x=>x*Math.PI/180,dl=t(c-a),dg=t(d-b),h=Math.sin(dl/2)**2+Math.cos(t(a))*Math.cos(t(c))*Math.sin(dg/2)**2;return 2*6371000*Math.asin(Math.sqrt(h))};
 function getFix(){return new Promise((ok,no)=>{if(!navigator.geolocation)return no('Unable to verify your location. Please try again.');navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy}),x=>no(x.code==1?'Please enable location access to mark your attendance.':'Unable to verify your location. Please try again.'),{enableHighAccuracy:true,maximumAge:0,timeout:20000})})}
-function startGeo(){if(WID!==null)return;if(!navigator.geolocation){GEO.err='unavail';return}WID=navigator.geolocation.watchPosition(p=>{GEO.err=null;GEO.pos={lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy};geoUI()},x=>{GEO.pos=null;GEO.err=x.code==1?'denied':'unavail';geoUI()},{enableHighAccuracy:true,maximumAge:0,timeout:30000})}
-function geoState(){const w=S&&S.wp;if(S&&!S.geo)return{ok:true,msg:'Location check is switched off by HR.'};if(!w)return{ok:false,msg:'No workplace is set up for you. Please contact HR.'};if(GEO.err=='denied')return{ok:false,msg:'Please enable location access to mark your attendance.'};if(!GEO.pos)return{ok:false,msg:GEO.err?'Unable to verify your location. Please try again.':'Checking your location...'};
+function getRecentFix(){
+  const p=GEO.pos;
+
+  if(
+    p &&
+    p.ts &&
+    Date.now()-p.ts<=15000 &&
+    Number.isFinite(S.maxAcc) &&
+    p.acc<=S.maxAcc
+  ){
+    return Promise.resolve({
+      lat:p.lat,
+      lng:p.lng,
+      acc:p.acc
+    });
+  }
+
+  return getFix();
+}  
+function startGeo(){
+  if(WID!==null)return;
+
+  if(!navigator.geolocation){
+    GEO.err='unavail';
+    return;
+  }
+
+  WID=navigator.geolocation.watchPosition(
+    p=>{
+      GEO.err=null;
+
+      GEO.pos={
+        lat:p.coords.latitude,
+        lng:p.coords.longitude,
+        acc:p.coords.accuracy,
+        ts:Date.now()
+      };
+
+      geoUI();
+    },
+    x=>{
+      GEO.pos=null;
+      GEO.err=x.code==1?'denied':'unavail';
+      geoUI();
+    },
+    {
+      enableHighAccuracy:true,
+      maximumAge:0,
+      timeout:30000
+    }
+  );
+}function geoState(){const w=S&&S.wp;if(S&&!S.geo)return{ok:true,msg:'Location check is switched off by HR.'};if(!w)return{ok:false,msg:'No workplace is set up for you. Please contact HR.'};if(GEO.err=='denied')return{ok:false,msg:'Please enable location access to mark your attendance.'};if(!GEO.pos)return{ok:false,msg:GEO.err?'Unable to verify your location. Please try again.':'Checking your location...'};
   const d=distM(GEO.pos.lat,GEO.pos.lng,w.lat,w.lng),a=GEO.pos.acc;if(a>S.maxAcc)return{ok:false,d,msg:'Your GPS signal is weak (about '+Math.round(a)+' m). Move to an open area.'};
   return d<=w.radius?{ok:true,d,msg:'Location verified. You can mark your attendance.'}:{ok:false,d,msg:'You are outside the permitted workplace area. Please reach your assigned workplace to mark attendance.'}}
 function geoUI(){const el=$('#geo');if(!el||!S)return;const g=geoState(),w=S.wp,r=S.rec;
   el.innerHTML=`<div class="${g.ok?'ok':'wn'}"><b>${e(g.msg)}</b></div>${w?`<div class="mu">Workplace: ${e(w.name)} · Allowed radius ${w.radius} m${g.d!=null?' · You are '+Math.round(g.d)+' m away':''}</div>`:''}`;
   const bi=$('#bin'),bo=$('#bout');if(bi)bi.disabled=!(g.ok&&!r.in);if(bo)bo.disabled=!(g.ok&&r.in&&!r.out)}
-async function punch(k){if(busy)return;busy=true;try{const loc=S.geo?await getFix():null;S=await call('punch',{kind:k,loc});toast(k=='in'?'Checked in at '+S.rec.in:'Checked out at '+S.rec.out);draw()}catch(x){toast(x)}busy=false}
-async function myCoords(){try{const p=await getFix();$('#mc').textContent=p.lat.toFixed(6)+', '+p.lng.toFixed(6)+' (accuracy '+Math.round(p.acc)+' m)'}catch(x){toast(x)}}
+async function punch(k){
+  if(busy)return;
+
+  busy=true;
+
+  try{
+    const loc=S.geo?await getRecentFix():null;
+
+    S=await call('punch',{kind:k,loc});
+
+    toast(k=='in'
+      ? 'Checked in at '+S.rec.in
+      : 'Checked out at '+S.rec.out
+    );
+
+    draw();
+
+  }catch(x){
+    toast(x);
+
+  }finally{
+    busy=false;
+  }
+}async function myCoords(){try{const p=await getFix();$('#mc').textContent=p.lat.toFixed(6)+', '+p.lng.toFixed(6)+' (accuracy '+Math.round(p.acc)+' m)'}catch(x){toast(x)}}
 async function reqCorr(){try{CR=await call('corr',{date:$('#cd').value,act:$('#ca').value,time:$('#ct').value,reason:$('#cr').value});toast('Request sent');draw()}catch(x){toast(x)}}
 async function decC(id,st){try{CR=await call('cdecide',{id,st,cmt:($('#cc_'+id)||{}).value||''});toast('Saved');draw()}catch(x){toast(x)}}
 function corrCard(){const m=(CR&&CR.mine)||[];return`<div class="card"><h2>Regularize Attendance</h2><div class="mu">Missed a check-in or check-out, or could not mark it? Send a request to your manager.</div><label>Date</label><input id="cd" type="date" value="${S.today}"><label>Action</label><select id="ca"><option value="in">Check-in</option><option value="out">Check-out</option></select><label>Time</label><input id="ct" type="time"><label>Reason</label><input id="cr"><button class="go" onclick="reqCorr()">Send request</button>${m.slice(0,5).map(c=>`<div class="row" style="display:block"><b>${c.date}</b> · ${c.act=='in'?'Check-in':'Check-out'} ${c.time} · <span class="${c.st=='Approved'?'ok':c.st=='Rejected'?'bad':'wn'}">${c.st}</span>${c.by?'<div class="mu">'+e(c.by)+(c.cmt?': '+e(c.cmt):'')+'</div>':''}</div>`).join('')}</div>`}
