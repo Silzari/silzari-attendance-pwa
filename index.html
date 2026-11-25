@@ -271,9 +271,53 @@ function teamView(){const T=TM,c=s=>s=='Absent'||s=='-'?'bad':s=='Present'||s=='
   return`<div class="card"><h2>Today</h2><div class="mu">${T.today}</div>${T.board.map(x=>`<div class="row"><span>${e(x.name)} <span class="mu">${e(x.dept)}</span></span><span class="${c(x.st)}">${x.st=='-'?'Not in':x.st}${x.in?' · '+x.in+(x.out?' - '+x.out:''):''}${x.late>0?' <span class="wn">late</span>':''}${x.loc?' <a href="https://www.google.com/maps?q='+e(x.loc)+'" target="_blank">map</a>':''}${x.dist!==''?' <span class="mu">'+x.dist+' m</span>':''}${x.flag?' <span class="bad">'+e(x.flag)+'</span>':''}</span></div>`).join('')}</div>
   <div class="card"><label style="margin-top:0">Month</label><input type="month" value="${T.ym}" onchange="loadTeam(this.value)"><div class="tw"><table><tr><th>Name</th><th>Present</th><th>Absent</th><th>Leave</th><th>Late</th><th>Hours</th></tr>${T.month.map(x=>`<tr><td>${e(x.name)}</td><td>${x.p}</td><td>${x.a}</td><td>${x.l}</td><td>${x.late}</td><td>${x.hrs}</td></tr>`).join('')}</table></div></div>`}
 setInterval(()=>{const c=$('#clk');if(c)c.textContent=now()},20000);
-(async()=>{let saved=null;try{saved=JSON.parse(localStorage.getItem('sz'))}catch(_){}
-  if(saved){U=saved;try{S=await call('login');startGeo();try{CR=await call('corrs')}catch(_){}return draw()}catch(x){U=null}}loginView()})();
+function hideSplash(){
+  const splash = document.getElementById('splashScreen');
 
+  if(splash){
+    splash.classList.add('hide');
+
+    setTimeout(()=>{
+      splash.remove();
+    },400);
+  }
+}
+
+(async()=>{
+  let saved=null;
+
+  try{
+    saved=JSON.parse(localStorage.getItem('sz'));
+  }catch(_){}
+
+  if(saved){
+    U=saved;
+
+    try{
+      S=await call('login');
+      startGeo();
+      draw();
+
+      hideSplash();
+
+      call('corrs')
+        .then(data=>{
+          CR=data;
+          if(tab==='home') draw();
+        })
+        .catch(()=>{});
+
+      return;
+
+    }catch(x){
+      U=null;
+    }
+  }
+
+  loginView();
+  hideSplash();
+
+})();
 // Installable PWA support. The service worker caches only the app shell;
 // attendance actions always go to the live Apps Script backend.
 if ('serviceWorker' in navigator) {
