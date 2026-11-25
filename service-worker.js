@@ -1,10 +1,11 @@
-const CACHE_NAME = 'silzari-attendance-shell-v1';
+const CACHE_NAME = 'silzari-attendance-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './images/splash-screen.png'
 ];
 
 self.addEventListener('install', event => {
